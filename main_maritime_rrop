@@ -1,0 +1,351 @@
+import java.util.*;
+
+public class MaritimeReliefRouteOptimization {
+
+    static int[][] distanceMatrix = {
+        {0, 15, 25, 35},
+        {15, 0, 30, 28},
+        {25, 30, 0, 20},
+        {35, 28, 20, 0}
+    };
+
+    static String[] locations = {"Port A", "Port B", "Relief Center C", "Relief Center D"};
+    static final int N = locations.length; 
+
+    public static String greedyTSP(int[][] dist) { //faisal
+        System.out.println("--- Maritime Relief Route Optimization (Greedy Algorithm) ---");
+        int n = dist.length;
+        boolean[] visited = new boolean[n];
+        int currentPos = 0; 
+        visited[currentPos] = true;
+        int totalCost = 0;
+        StringBuilder path = new StringBuilder(locations[currentPos]);
+
+        for (int count = 1; count < n; count++) {
+            int minCost = Integer.MAX_VALUE;
+            int nextPos = -1;
+
+            for (int i = 0; i < n; i++) {
+                if (!visited[i] && dist[currentPos][i] < minCost) {
+                    minCost = dist[currentPos][i];
+                    nextPos = i;
+                }
+            }
+
+            if (nextPos != -1) {
+                totalCost += minCost;
+                currentPos = nextPos;
+                visited[currentPos] = true;
+                path.append(" -> ").append(locations[currentPos]);
+            }
+        }
+
+        totalCost += dist[currentPos][0];
+        path.append(" -> ").append(locations[0]);
+
+        return "Greedy TSP Route: " + path.toString() + " | Total Distance: " + totalCost + " nm";
+    }
+
+    public static String dynamicProgrammingTSP(int[][] dist) { //farah
+         System.out.println("--- Maritime Relief Route Optimization (dynamicProgramming) ---");
+        int n = dist.length;
+        int[][] memo = new int[n][1 << n];
+        for (int[] row : memo) {
+            Arrays.fill(row, -1);
+        }
+        
+        final int VISITED_ALL = (1 << n) - 1;
+        
+        int[][] paths = new int[n][1 << n]; 
+
+        int minCost = dynamicProgrammingTSPHelper(0, 1, dist, n, memo, VISITED_ALL, paths);
+
+        StringBuilder path = new StringBuilder(locations[0]);
+        int currentPos = 0;
+        int mask = 1;
+        while (mask != VISITED_ALL) {
+            int nextCity = paths[currentPos][mask];
+            if (nextCity == -1) break; 
+            
+            path.append(" -> ").append(locations[nextCity]);
+            currentPos = nextCity;
+            mask |= (1 << nextCity);
+        }
+        path.append(" -> ").append(locations[0]);
+        
+        return "Dynamic Programming TSP Route: " + path.toString() + " | Total Distance: " + minCost + " nm";
+    }
+
+    private static int dynamicProgrammingTSPHelper(int pos, int mask, int[][] dist, int n, int[][] memo, int VISITED_ALL, int[][] paths) {
+        if (mask == VISITED_ALL) {
+            return dist[pos][0];
+        }
+
+        if (memo[pos][mask] != -1) {
+            return memo[pos][mask];
+        }
+
+        int minCost = Integer.MAX_VALUE;
+        int optimalNextCity = -1;
+
+        for (int next = 0; next < n; next++) {
+            if ((mask & (1 << next)) == 0) {
+                
+                int newMask = mask | (1 << next);
+                
+                int currentCost = dist[pos][next] + dynamicProgrammingTSPHelper(next, newMask, dist, n, memo, VISITED_ALL, paths);
+                
+                if (currentCost < minCost) {
+                    minCost = currentCost;
+                    optimalNextCity = next;
+                }
+            }
+        }
+        
+        memo[pos][mask] = minCost;
+        paths[pos][mask] = optimalNextCity;
+        return minCost;
+    }
+
+
+    public static String backtrackingTSP(int[][] dist) { //arif
+         System.out.println("--- Maritime Relief Route Optimization (backtracking) ---");
+        boolean[] visited = new boolean[dist.length];
+        visited[0] = true; 
+        int n = dist.length;
+        
+        minCostBacktracking = Integer.MAX_VALUE; 
+        bestPathBacktracking = ""; 
+        
+        tspBacktracking(0, dist, visited, n, 1, 0, new StringBuilder(locations[0]));
+
+        return "Backtracking TSP Route: " + bestPathBacktracking + " | Total Distance: " + minCostBacktracking + " nm";
+    }
+
+    private static int minCostBacktracking;
+    private static String bestPathBacktracking;
+
+    private static int tspBacktracking(int pos, int[][] dist, boolean[] visited, 
+                                       int n, int count, int cost, StringBuilder path) {
+        
+        if (count == n) {
+            cost += dist[pos][0];
+            
+            if (cost < minCostBacktracking) {
+                minCostBacktracking = cost;
+                bestPathBacktracking = path.toString() + " -> " + locations[0];
+            }
+            
+            return minCostBacktracking;
+        }
+
+        for (int i = 0; i < n; i++) {
+            if (!visited[i]) {
+                visited[i] = true;
+                path.append(" -> ").append(locations[i]);
+
+                tspBacktracking(i, dist, visited, n, count + 1, cost + dist[pos][i], path);
+
+                path.setLength(path.length() - (locations[i].length() + 4)); 
+                visited[i] = false;
+            }
+        }
+        return minCostBacktracking; 
+    }
+
+
+    public static String divideAndConquerTSP(int[][] dist) { //munirah
+         System.out.println("--- Maritime Relief Route Optimization (divideAndConquer) ---");
+        boolean[] visited = new boolean[dist.length];
+        visited[0] = true; 
+        int n = dist.length;
+        
+        minCostDandC = Integer.MAX_VALUE;
+        bestPathDandC = "";
+        
+        divideAndConquerHelper(0, visited, 0, dist, n, new StringBuilder(locations[0]));
+        
+        return "Divide & Conquer TSP Route: " + bestPathDandC + " | Total Distance: " + minCostDandC + " nm";
+    }
+    
+    private static int minCostDandC;
+    private static String bestPathDandC;
+
+    private static void divideAndConquerHelper(int pos, boolean[] visited, int currentCost, int[][] dist, int n, StringBuilder path) {
+        
+        if (allVisited(visited)) {
+            int finalCost = currentCost + dist[pos][0];
+            
+            if (finalCost < minCostDandC) {
+                minCostDandC = finalCost;
+                bestPathDandC = path.toString() + " -> " + locations[0];
+            }
+            return;
+        }
+
+        for (int i = 0; i < n; i++) {
+            if (!visited[i]) {
+                visited[i] = true;
+                path.append(" -> ").append(locations[i]);
+                
+                divideAndConquerHelper(i, visited, currentCost + dist[pos][i], dist, n, path);
+                
+                path.setLength(path.length() - (locations[i].length() + 4)); 
+                visited[i] = false;
+            }
+        }
+    }
+
+    private static boolean allVisited(boolean[] visited) {
+        for (boolean v : visited) {
+            if (!v) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+
+    public static String insertionSort(int[] arr) { //alya
+         System.out.println("--- Maritime Relief Route Optimization (insertionSort) ---");
+        int n = arr.length;
+        for (int i = 1; i < n; ++i) {
+            int key = arr[i];
+            int j = i - 1;
+
+            while (j >= 0 && arr[j] > key) {
+                arr[j + 1] = arr[j];
+                j = j - 1;
+            }
+            arr[j + 1] = key;
+        }
+        return Arrays.toString(arr); 
+    }
+
+    public static String binarySearch(int[] arr, int target) {
+        int low = 0;
+        int high = arr.length - 1;
+
+        while (low <= high) {
+            int mid = low + (high - low) / 2;
+
+            if (arr[mid] == target) {
+                return String.valueOf(mid);
+            }
+
+            if (arr[mid] < target) {
+                low = mid + 1;
+            }
+
+            else {
+                high = mid - 1;
+            }
+        }
+
+        return "-1"; 
+    }
+
+    private static class MinHeap {
+        private PriorityQueue<Integer> heap;
+
+        public MinHeap() {
+            heap = new PriorityQueue<>();
+        }
+
+        public void insert(int element) {
+            heap.add(element);
+        }
+
+        public int extractMin() {
+            if (heap.isEmpty()) {
+                return -1; 
+            }
+            return heap.poll();
+        }
+    }
+
+    private MinHeap heap = new MinHeap();
+    
+
+    static class SplayTree {
+        private Node root;
+
+        private class Node {
+            int key;
+            Node left, right;
+
+            public Node(int item) {
+                key = item;
+                left = right = null;
+            }
+        }
+
+        public SplayTree() {
+            root = null;
+        }
+
+        public void insert(int key) {
+            root = insert(root, key);
+        }
+        
+        private Node insert(Node node, int key) {
+            if (node == null) return new Node(key);
+            
+            if (key < node.key) {
+                node.left = insert(node.left, key);
+            } else if (key > node.key) {
+                node.right = insert(node.right, key);
+            }
+            return node;
+        }
+
+        public boolean search(int key) {
+            return search(root, key);
+        }
+        
+        private boolean search(Node root, int key) {
+            if (root == null || root.key == key) {
+                return root != null;
+            }
+            if (root.key < key) {
+                return search(root.right, key);
+            }
+            return search(root.left, key);
+        }
+    }
+    
+    private SplayTree tree = new SplayTree();
+
+    public static void main(String[] args) {
+        MaritimeReliefRouteOptimization optimizer = new MaritimeReliefRouteOptimization();
+        
+        System.out.println(greedyTSP(distanceMatrix));
+        System.out.print("\n");
+        System.out.println(dynamicProgrammingTSP(distanceMatrix));
+        System.out.print("\n");
+        System.out.println(backtrackingTSP(distanceMatrix));
+        System.out.print("\n");
+        System.out.println(divideAndConquerTSP(distanceMatrix));
+        System.out.print("\n");
+        
+        int[] arr = {8, 3, 5, 1, 9, 2};
+        insertionSort(arr); 
+        System.out.println("Sorted Array: " + Arrays.toString(arr));
+        
+        System.out.print("\n");
+        System.out.println("--- (-- - Maritime Relief Route Optimization (binarySearch) - - -) ---");
+        System.out.println("Binary Search (5 found at index): " + binarySearch(arr, 5));
+        System.out.print("\n");
+
+        System.out.println("--- (Heap and Splay Tree) ---");
+        optimizer.heap.insert(10);
+        optimizer.heap.insert(3);
+        optimizer.heap.insert(15);
+        System.out.println("Min-Heap Extract Min: " + optimizer.heap.extractMin());
+
+        optimizer.tree.insert(20);
+        optimizer.tree.insert(10);
+        optimizer.tree.insert(30);
+        System.out.println("Splay Tree Search (10 found): " + optimizer.tree.search(10));
+   }
+}
